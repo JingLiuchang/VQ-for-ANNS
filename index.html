@@ -89,14 +89,14 @@
             <div class="legend-filter" id="frontierLegend"></div>
           </div>
           <div class="chart-actions"><button id="copyViewLink" class="action-button" type="button">Copy view link</button><button id="downloadFrontier" class="action-button" type="button">Download SVG</button><span id="shareStatus" class="share-status" role="status" aria-live="polite"></span></div>
-          <div id="frontierExplore" class="chart-layout"><div class="chart-card"><div id="frontierChart" class="svg-chart" role="img" aria-label="Search frontier chart"></div><div class="chart-caption">Points are sampled from the generated P2 curves. Log scale is used for throughput and nprobe.</div></div><aside class="insight-card" id="frontierInsight"></aside></div>
+          <div id="frontierExplore" class="chart-layout"><div class="chart-card"><div id="frontierChart" class="svg-chart" role="img" aria-label="Search frontier chart"></div><div class="chart-caption">All coordinate points from <code>p2-end2end.tex</code> are retained. Each marker exposes the exact recall and QPS/nprobe value on hover.</div></div><aside class="insight-card" id="frontierInsight"></aside></div>
           <div id="frontierTable" class="table-card" hidden></div>
         </section>
 
         <section id="distortion" class="panel-section">
           <div class="section-heading"><div><div class="section-index">04 / QUANTIZATION</div><h2>Distance error at a glance</h2><p>Zoom out from twelve overlaid lines and inspect the low-rate envelope first.</p></div><div class="section-badge">lower is better <span>↘</span></div></div>
           <div class="control-row"><label class="select-wrap">Dataset<select id="distortionDataset"><option value="sift">SIFT</option><option value="deep">DEEP</option></select></label><div class="segmented" role="group" aria-label="Distance error metric"><button class="seg-button active" data-distortion-mode="ARE" type="button">ARE</button><button class="seg-button" data-distortion-mode="MRE" type="button">MRE</button></div><div class="chart-note">effective bits per dimension · log y</div></div>
-          <div class="chart-layout"><div class="chart-card"><div id="distortionChart" class="svg-chart" role="img" aria-label="Quantization distortion chart"></div><div class="chart-caption">Representative curves are shown for PQ, OPQ, RQ, LSQ, RaBitQ, SAQ and TurboQ. Hover a point for the exact sampled value.</div></div><aside class="insight-card" id="distortionInsight"></aside></div>
+          <div class="chart-layout"><div class="chart-card"><div id="distortionChart" class="svg-chart" role="img" aria-label="Quantization distortion chart"></div><div class="chart-caption">All coordinate points from <code>p1-distortion.tex</code> are retained. Every marker reports its exact bpd and error on hover.</div></div><aside class="insight-card" id="distortionInsight"></aside></div>
         </section>
 
         <section id="costs" class="panel-section">

@@ -3,10 +3,12 @@
   const $ = (id) => document.getElementById(id);
   const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const fmt = (value, digits = 2) => value == null ? '—' : Number(value).toLocaleString(undefined, { maximumFractionDigits: digits });
+  const pointValue = (value) => value == null ? '—' : String(Number(value));
   const dataset = (id) => D.datasets.find((item) => item.id === id);
   const method = (id) => D.methods.find((item) => item.id === id);
   const coreKeys = ['pq','opq','mrq','rabit1','rabit5','hnsw'];
-  const distortionKeys = ['pq','opq','rq','lsq','rabit1','saq5','turboMse5'];
+  const frontierKeys = ['pq','opq','rq','lsq','neq','scann','mrq','rabit1','rabit2','rabit5','turboMse5','turboProd5','saq5','lvq8','hnsw'];
+  const distortionKeys = ['pq','opq','neq','scann','rq','lsq','lvq8','rabit1','mrq','saq5','turboMse5','turboProd5'];
   const state = { frontierDataset:'sift', frontierMode:'qps', frontierView:'explore', distortionDataset:'sift', distortionMode:'ARE', costDataset:'deep', costMode:'it', scaleMode:'qps', visible:new Set(coreKeys) };
 
   function restoreUrlState() {
@@ -15,20 +17,20 @@
     state.frontierDataset = valid(params.get('dataset'), D.datasets.map((item) => item.id)) || state.frontierDataset;
     state.frontierMode = valid(params.get('metric'), ['qps','nprobe']) || state.frontierMode;
     state.frontierView = valid(params.get('view'), ['explore','table']) || state.frontierView;
-    state.distortionDataset = valid(params.get('distortion'), D.datasets.slice(0,2).map((item) => item.id)) || state.distortionDataset;
+    state.distortionDataset = valid(params.get('distortion'), D.datasets.map((item) => item.id)) || state.distortionDataset;
     state.distortionMode = valid(params.get('error'), ['ARE','MRE']) || state.distortionMode;
     state.costDataset = valid(params.get('cost'), D.datasets.map((item) => item.id)) || state.costDataset;
     state.costMode = valid(params.get('costMetric'), ['it','is','mo']) || state.costMode;
     state.scaleMode = valid(params.get('scale'), ['qps','index']) || state.scaleMode;
     if (params.has('series')) {
-      const requested = params.get('series').split(',').filter((key) => coreKeys.includes(key));
+      const requested = params.get('series').split(',').filter((key) => frontierKeys.includes(key));
       state.visible = new Set(requested);
     }
   }
   function syncUrlState() {
     const url = new URL(window.location.href);
     const params = url.searchParams;
-    [['dataset',state.frontierDataset],['metric',state.frontierMode],['view',state.frontierView],['distortion',state.distortionDataset],['error',state.distortionMode],['cost',state.costDataset],['costMetric',state.costMode],['scale',state.scaleMode],['series',coreKeys.filter((key) => state.visible.has(key)).join(',')]].forEach(([key,value]) => params.set(key,value));
+    [['dataset',state.frontierDataset],['metric',state.frontierMode],['view',state.frontierView],['distortion',state.distortionDataset],['error',state.distortionMode],['cost',state.costDataset],['costMetric',state.costMode],['scale',state.scaleMode],['series',frontierKeys.filter((key) => state.visible.has(key)).join(',')]].forEach(([key,value]) => params.set(key,value));
     url.search = params.toString();
     window.history.replaceState({}, '', url);
     return url.toString();
@@ -110,17 +112,18 @@
     Object.entries(series).forEach(([key,coords]) => {
       const m = method(key) || {color:'#777',label:key}; if (!coords || coords.length < 1) return;
       const path = document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('d',coords.map((p,i) => `${i ? 'L':'M'} ${x(p[0]).toFixed(2)} ${y(p[1]).toFixed(2)}`).join(' ')); path.setAttribute('stroke',m.color); path.setAttribute('class','series-line'); svg.appendChild(path);
-      coords.forEach((p) => { const c = document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('cx',x(p[0])); c.setAttribute('cy',y(p[1])); c.setAttribute('r','4'); c.setAttribute('fill',m.color); c.setAttribute('class','series-dot'); c.addEventListener('mouseenter',(e) => showTooltip(e,`${m.label} · ${options.xLabel} ${fmt(p[0],3)} · ${options.yLabel} ${fmt(p[1],2)}`)); c.addEventListener('mousemove',(e) => showTooltip(e,`${m.label} · ${options.xLabel} ${fmt(p[0],3)} · ${options.yLabel} ${fmt(p[1],2)}`)); c.addEventListener('mouseleave',hideTooltip); });
+      coords.forEach((p) => { const pointText = `${m.label} · ${options.xLabel} ${pointValue(p[0])} · ${options.yLabel} ${pointValue(p[1])}`; const c = document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('cx',x(p[0])); c.setAttribute('cy',y(p[1])); c.setAttribute('r','4'); c.setAttribute('fill',m.color); c.setAttribute('class','series-dot'); const title = document.createElementNS('http://www.w3.org/2000/svg','title'); title.textContent = pointText; c.appendChild(title); c.addEventListener('mouseenter',(e) => showTooltip(e,pointText)); c.addEventListener('mousemove',(e) => showTooltip(e,pointText)); c.addEventListener('mouseleave',hideTooltip); });
     });
     host.appendChild(svg);
   }
 
   function renderFrontierLegend() {
-    $('frontierLegend').innerHTML = coreKeys.map((key) => { const m=method(key); return `<button type="button" class="legend-toggle ${state.visible.has(key) ? '' : 'off'}" data-legend-key="${key}"><i class="legend-swatch" style="background:${m.color}"></i>${m.label}</button>`; }).join('');
+    $('frontierLegend').innerHTML = `<span class="legend-actions"><button type="button" class="legend-toggle" data-series-action="all">all</button><button type="button" class="legend-toggle" data-series-action="none">none</button></span>${frontierKeys.map((key) => { const m=method(key); return `<button type="button" class="legend-toggle ${state.visible.has(key) ? '' : 'off'}" data-legend-key="${key}"><i class="legend-swatch" style="background:${m.color}"></i>${m.label}</button>`; }).join('')}`;
+    document.querySelectorAll('[data-series-action]').forEach((button) => button.addEventListener('click', () => { state.visible = button.dataset.seriesAction === 'all' ? new Set(frontierKeys) : new Set(); syncUrlState(); renderFrontierLegend(); renderFrontier(); }));
     document.querySelectorAll('[data-legend-key]').forEach((button) => button.addEventListener('click', () => { const key=button.dataset.legendKey; state.visible.has(key) ? state.visible.delete(key) : state.visible.add(key); syncUrlState(); renderFrontierLegend(); renderFrontier(); }));
   }
   function renderFrontier() {
-    const selected = D.search[state.frontierDataset]; const source = selected[state.frontierMode]; const series = Object.fromEntries(coreKeys.filter((key) => state.visible.has(key) && source[key]).map((key) => [key,source[key]]));
+    const selected = D.search[state.frontierDataset]; const source = selected[state.frontierMode]; const series = Object.fromEntries(frontierKeys.filter((key) => state.visible.has(key) && source[key]).map((key) => [key,source[key]]));
     renderLineChart('frontierChart',series,{xTitle:'Recall@10',yTitle:state.frontierMode === 'qps' ? 'Queries / second' : 'nprobe',xLabel:'recall',yLabel:state.frontierMode === 'qps' ? 'QPS' : 'nprobe',logY:true,xMin:state.frontierMode === 'qps' ? .55 : Math.min(...Object.values(series).flat().map(p=>p[0]))*.94,xMax:1.0});
     const target = state.frontierMode === 'qps' ? .95 : .9; const rows=[]; Object.entries(series).forEach(([key,coords]) => { const point=coords.reduce((best,p)=>Math.abs(p[0]-target)<Math.abs(best[0]-target)?p:best,coords[0]); rows.push({key,point}); }); rows.sort((a,b)=>state.frontierMode === 'qps' ? b.point[1]-a.point[1] : a.point[1]-b.point[1]); const ds=dataset(state.frontierDataset);
     $('frontierInsight').innerHTML = `<div class="insight-kicker">${ds.label} · ${state.frontierMode === 'qps' ? 'QPS frontier' : 'probe budget'}</div><h3>${state.frontierMode === 'qps' ? 'Throughput separates after 0.95 recall.' : 'Routing effort is visible at a glance.'}</h3><p>${state.frontierMode === 'qps' ? 'The values below are the closest sampled points to Recall@10 = 0.95.' : 'The values below are the closest sampled points to Recall@10 = 0.90.'}</p><div class="insight-list">${rows.slice(0,4).map(({key,point})=>`<div class="insight-row"><span><i class="legend-swatch" style="background:${method(key).color};display:inline-block;margin-right:5px"></i>${method(key).label}</span><strong>${fmt(point[1],0)} ${state.frontierMode === 'qps' ? 'QPS' : 'probe'}</strong></div>`).join('')}</div>`;
@@ -156,7 +159,7 @@
   }
   function renderMethods() { $('methodTableBody').innerHTML=D.methodSummary.map((row)=>`<tr>${row.map((cell,i)=>`<td>${i===0?`<strong>${esc(cell)}</strong>`:esc(cell)}</td>`).join('')}</tr>`).join(''); }
   function wireControls() {
-    fillSelect($('frontierDataset'),D.datasets,state.frontierDataset); fillSelect($('distortionDataset'),D.datasets.slice(0,2),state.distortionDataset); fillSelect($('costDataset'),D.datasets,state.costDataset);
+    fillSelect($('frontierDataset'),D.datasets,state.frontierDataset); fillSelect($('distortionDataset'),D.datasets,state.distortionDataset); fillSelect($('costDataset'),D.datasets,state.costDataset);
     $('frontierDataset').addEventListener('change',(e)=>{state.frontierDataset=e.target.value;syncUrlState();renderDatasetStrip();renderFrontier();}); $('distortionDataset').addEventListener('change',(e)=>{state.distortionDataset=e.target.value;syncUrlState();renderDistortion();}); $('costDataset').addEventListener('change',(e)=>{state.costDataset=e.target.value;syncUrlState();renderCosts();}); $('costFilter').addEventListener('input',renderCosts);
     document.querySelectorAll('[data-frontier-mode]').forEach((b)=>b.addEventListener('click',()=>{state.frontierMode=b.dataset.frontierMode;syncUrlState();setActive('[data-frontier-mode]','data-frontier-mode',state.frontierMode);renderFrontier();})); document.querySelectorAll('[data-frontier-view]').forEach((b)=>b.addEventListener('click',()=>{state.frontierView=b.dataset.frontierView;syncUrlState();setActive('[data-frontier-view]','data-frontier-view',state.frontierView);renderFrontier();})); document.querySelectorAll('[data-distortion-mode]').forEach((b)=>b.addEventListener('click',()=>{state.distortionMode=b.dataset.distortionMode;syncUrlState();setActive('[data-distortion-mode]','data-distortion-mode',state.distortionMode);renderDistortion();})); document.querySelectorAll('[data-cost-mode]').forEach((b)=>b.addEventListener('click',()=>{state.costMode=b.dataset.costMode;syncUrlState();setActive('[data-cost-mode]','data-cost-mode',state.costMode);renderCosts();})); document.querySelectorAll('[data-scale-mode]').forEach((b)=>b.addEventListener('click',()=>{state.scaleMode=b.dataset.scaleMode;syncUrlState();setActive('[data-scale-mode]','data-scale-mode',state.scaleMode);renderScale();}));
     $('copyViewLink').addEventListener('click',()=>{copyText(syncUrlState()).then(()=>{ $('shareStatus').textContent='Link copied'; setTimeout(()=>{ $('shareStatus').textContent=''; },2200); }).catch(()=>{ $('shareStatus').textContent='Copy failed'; });}); $('downloadFrontier').addEventListener('click',()=>downloadSvg('frontierChart',`survey-benchmark-${state.frontierDataset}-${state.frontierMode}.svg`));
