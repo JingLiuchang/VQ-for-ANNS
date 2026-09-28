@@ -1,4 +1,4 @@
-# PQE Results Explorer
+# Survey & Benchmark — Vector Quantization for ANNS
 
 Open [`index.html`](index.html) directly in a browser. It is a dependency-free static page; the data lives in `data.js`, rendering and interactions in `app.js`, and styling in `styles.css`.
 
