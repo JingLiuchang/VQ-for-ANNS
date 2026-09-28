@@ -20,11 +20,15 @@
     state.costDataset = valid(params.get('cost'), D.datasets.map((item) => item.id)) || state.costDataset;
     state.costMode = valid(params.get('costMetric'), ['it','is','mo']) || state.costMode;
     state.scaleMode = valid(params.get('scale'), ['qps','index']) || state.scaleMode;
+    if (params.has('series')) {
+      const requested = params.get('series').split(',').filter((key) => coreKeys.includes(key));
+      state.visible = new Set(requested);
+    }
   }
   function syncUrlState() {
     const url = new URL(window.location.href);
     const params = url.searchParams;
-    [['dataset',state.frontierDataset],['metric',state.frontierMode],['view',state.frontierView],['distortion',state.distortionDataset],['error',state.distortionMode],['cost',state.costDataset],['costMetric',state.costMode],['scale',state.scaleMode]].forEach(([key,value]) => params.set(key,value));
+    [['dataset',state.frontierDataset],['metric',state.frontierMode],['view',state.frontierView],['distortion',state.distortionDataset],['error',state.distortionMode],['cost',state.costDataset],['costMetric',state.costMode],['scale',state.scaleMode],['series',coreKeys.filter((key) => state.visible.has(key)).join(',')]].forEach(([key,value]) => params.set(key,value));
     url.search = params.toString();
     window.history.replaceState({}, '', url);
     return url.toString();
@@ -36,6 +40,7 @@
   function downloadSvg(target, filename) {
     const svg = $(target)?.querySelector('svg'); if (!svg) return;
     const copy = svg.cloneNode(true); copy.setAttribute('xmlns','http://www.w3.org/2000/svg'); copy.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+    const style = document.createElementNS('http://www.w3.org/2000/svg','style'); style.textContent = '.grid-line{stroke:#e7eaf0;stroke-width:1}.axis-line{stroke:#cdd3dc;stroke-width:1}.axis-label{fill:#818b99;font:10px monospace}.axis-title{fill:#6d7785;font:11px sans-serif}.series-line{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}.series-dot{stroke:#fff;stroke-width:1.5}'; copy.insertBefore(style, copy.firstChild);
     const blob = new Blob([new XMLSerializer().serializeToString(copy)], {type:'image/svg+xml;charset=utf-8'}); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); URL.revokeObjectURL(link.href);
   }
 
@@ -112,7 +117,7 @@
 
   function renderFrontierLegend() {
     $('frontierLegend').innerHTML = coreKeys.map((key) => { const m=method(key); return `<button type="button" class="legend-toggle ${state.visible.has(key) ? '' : 'off'}" data-legend-key="${key}"><i class="legend-swatch" style="background:${m.color}"></i>${m.label}</button>`; }).join('');
-    document.querySelectorAll('[data-legend-key]').forEach((button) => button.addEventListener('click', () => { const key=button.dataset.legendKey; state.visible.has(key) ? state.visible.delete(key) : state.visible.add(key); renderFrontierLegend(); renderFrontier(); }));
+    document.querySelectorAll('[data-legend-key]').forEach((button) => button.addEventListener('click', () => { const key=button.dataset.legendKey; state.visible.has(key) ? state.visible.delete(key) : state.visible.add(key); syncUrlState(); renderFrontierLegend(); renderFrontier(); }));
   }
   function renderFrontier() {
     const selected = D.search[state.frontierDataset]; const source = selected[state.frontierMode]; const series = Object.fromEntries(coreKeys.filter((key) => state.visible.has(key) && source[key]).map((key) => [key,source[key]]));
