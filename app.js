@@ -7,7 +7,37 @@
   const method = (id) => D.methods.find((item) => item.id === id);
   const coreKeys = ['pq','opq','mrq','rabit1','rabit5','hnsw'];
   const distortionKeys = ['pq','opq','rq','lsq','rabit1','saq5','turboMse5'];
-  const state = { frontierDataset:'sift', frontierMode:'qps', distortionDataset:'sift', distortionMode:'ARE', costDataset:'deep', costMode:'it', scaleMode:'qps', visible:new Set(coreKeys) };
+  const state = { frontierDataset:'sift', frontierMode:'qps', frontierView:'explore', distortionDataset:'sift', distortionMode:'ARE', costDataset:'deep', costMode:'it', scaleMode:'qps', visible:new Set(coreKeys) };
+
+  function restoreUrlState() {
+    const params = new URLSearchParams(window.location.search);
+    const valid = (value, values) => values.includes(value) ? value : null;
+    state.frontierDataset = valid(params.get('dataset'), D.datasets.map((item) => item.id)) || state.frontierDataset;
+    state.frontierMode = valid(params.get('metric'), ['qps','nprobe']) || state.frontierMode;
+    state.frontierView = valid(params.get('view'), ['explore','table']) || state.frontierView;
+    state.distortionDataset = valid(params.get('distortion'), D.datasets.slice(0,2).map((item) => item.id)) || state.distortionDataset;
+    state.distortionMode = valid(params.get('error'), ['ARE','MRE']) || state.distortionMode;
+    state.costDataset = valid(params.get('cost'), D.datasets.map((item) => item.id)) || state.costDataset;
+    state.costMode = valid(params.get('costMetric'), ['it','is','mo']) || state.costMode;
+    state.scaleMode = valid(params.get('scale'), ['qps','index']) || state.scaleMode;
+  }
+  function syncUrlState() {
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    [['dataset',state.frontierDataset],['metric',state.frontierMode],['view',state.frontierView],['distortion',state.distortionDataset],['error',state.distortionMode],['cost',state.costDataset],['costMetric',state.costMode],['scale',state.scaleMode]].forEach(([key,value]) => params.set(key,value));
+    url.search = params.toString();
+    window.history.replaceState({}, '', url);
+    return url.toString();
+  }
+  function copyText(value) {
+    if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(value);
+    const input = document.createElement('textarea'); input.value = value; input.style.position = 'fixed'; input.style.opacity = '0'; document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove(); return Promise.resolve();
+  }
+  function downloadSvg(target, filename) {
+    const svg = $(target)?.querySelector('svg'); if (!svg) return;
+    const copy = svg.cloneNode(true); copy.setAttribute('xmlns','http://www.w3.org/2000/svg'); copy.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+    const blob = new Blob([new XMLSerializer().serializeToString(copy)], {type:'image/svg+xml;charset=utf-8'}); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); URL.revokeObjectURL(link.href);
+  }
 
   function fillSelect(select, items, selected) {
     select.innerHTML = items.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${esc(item.label)}</option>`).join('');
@@ -24,12 +54,15 @@
     ];
     $('kpiGrid').innerHTML = cards.map(([value,label,detail]) => `<article class="kpi"><span class="kpi-value">${value}</span><span class="kpi-label">${label}</span><span class="kpi-detail">${detail}</span></article>`).join('');
   }
+  function renderProtocol() {
+    $('datasetTableBody').innerHTML = D.datasets.map((item) => `<tr><td><strong>${esc(item.label)}</strong></td><td>${esc(item.domain)}</td><td>${item.dim}</td><td>${esc(item.base)}</td><td>${esc(item.queries)}</td><td>${fmt(item.lid,1)}</td></tr>`).join('');
+  }
   function renderDatasetStrip() {
     $('datasetStrip').innerHTML = D.datasets.map((item) => `<button type="button" class="dataset-chip ${item.id === state.frontierDataset ? 'active' : ''}" data-dataset-chip="${item.id}"><strong>${item.label}</strong>${item.dim}d · ${item.domain}</button>`).join('');
     document.querySelectorAll('[data-dataset-chip]').forEach((button) => button.addEventListener('click', () => {
       state.frontierDataset = button.dataset.datasetChip;
       $('frontierDataset').value = state.frontierDataset;
-      renderDatasetStrip(); renderFrontier();
+      syncUrlState(); renderDatasetStrip(); renderFrontier();
       $('frontier').scrollIntoView({ behavior:'smooth', block:'start' });
     }));
   }
@@ -86,6 +119,8 @@
     renderLineChart('frontierChart',series,{xTitle:'Recall@10',yTitle:state.frontierMode === 'qps' ? 'Queries / second' : 'nprobe',xLabel:'recall',yLabel:state.frontierMode === 'qps' ? 'QPS' : 'nprobe',logY:true,xMin:state.frontierMode === 'qps' ? .55 : Math.min(...Object.values(series).flat().map(p=>p[0]))*.94,xMax:1.0});
     const target = state.frontierMode === 'qps' ? .95 : .9; const rows=[]; Object.entries(series).forEach(([key,coords]) => { const point=coords.reduce((best,p)=>Math.abs(p[0]-target)<Math.abs(best[0]-target)?p:best,coords[0]); rows.push({key,point}); }); rows.sort((a,b)=>state.frontierMode === 'qps' ? b.point[1]-a.point[1] : a.point[1]-b.point[1]); const ds=dataset(state.frontierDataset);
     $('frontierInsight').innerHTML = `<div class="insight-kicker">${ds.label} · ${state.frontierMode === 'qps' ? 'QPS frontier' : 'probe budget'}</div><h3>${state.frontierMode === 'qps' ? 'Throughput separates after 0.95 recall.' : 'Routing effort is visible at a glance.'}</h3><p>${state.frontierMode === 'qps' ? 'The values below are the closest sampled points to Recall@10 = 0.95.' : 'The values below are the closest sampled points to Recall@10 = 0.90.'}</p><div class="insight-list">${rows.slice(0,4).map(({key,point})=>`<div class="insight-row"><span><i class="legend-swatch" style="background:${method(key).color};display:inline-block;margin-right:5px"></i>${method(key).label}</span><strong>${fmt(point[1],0)} ${state.frontierMode === 'qps' ? 'QPS' : 'probe'}</strong></div>`).join('')}</div>`;
+    $('frontierTable').innerHTML = `<div class="data-table-wrap"><table class="data-table"><thead><tr><th>Method</th><th>Recall@10</th><th>${state.frontierMode === 'qps' ? 'Queries / second' : 'nprobe'}</th><th>Rate</th><th>Path</th></tr></thead><tbody>${rows.map(({key,point})=>{const m=method(key);return `<tr><td class="method-cell"><i class="legend-swatch" style="display:inline-block;background:${m.color};margin-right:6px"></i>${m.label}</td><td>${fmt(point[0],3)}</td><td>${fmt(point[1],0)}</td><td>${m.rate}</td><td>${m.rerank ? 'reranked' : m.family === 'graph' ? 'graph' : 'no rerank'}</td></tr>`;}).join('')}</tbody></table><div class="table-footnote">Rows show the closest sampled operating point to Recall@10 = ${target.toFixed(2)}. Use Explore for the full curve.</div></div>`;
+    $('frontierExplore').hidden = state.frontierView !== 'explore'; $('frontierTable').hidden = state.frontierView !== 'table';
   }
 
   function renderDistortion() {
@@ -117,10 +152,11 @@
   function renderMethods() { $('methodTableBody').innerHTML=D.methodSummary.map((row)=>`<tr>${row.map((cell,i)=>`<td>${i===0?`<strong>${esc(cell)}</strong>`:esc(cell)}</td>`).join('')}</tr>`).join(''); }
   function wireControls() {
     fillSelect($('frontierDataset'),D.datasets,state.frontierDataset); fillSelect($('distortionDataset'),D.datasets.slice(0,2),state.distortionDataset); fillSelect($('costDataset'),D.datasets,state.costDataset);
-    $('frontierDataset').addEventListener('change',(e)=>{state.frontierDataset=e.target.value;renderDatasetStrip();renderFrontier();}); $('distortionDataset').addEventListener('change',(e)=>{state.distortionDataset=e.target.value;renderDistortion();}); $('costDataset').addEventListener('change',(e)=>{state.costDataset=e.target.value;renderCosts();}); $('costFilter').addEventListener('input',renderCosts);
-    document.querySelectorAll('[data-frontier-mode]').forEach((b)=>b.addEventListener('click',()=>{state.frontierMode=b.dataset.frontierMode;setActive('[data-frontier-mode]','data-frontier-mode',state.frontierMode);renderFrontier();})); document.querySelectorAll('[data-distortion-mode]').forEach((b)=>b.addEventListener('click',()=>{state.distortionMode=b.dataset.distortionMode;setActive('[data-distortion-mode]','data-distortion-mode',state.distortionMode);renderDistortion();})); document.querySelectorAll('[data-cost-mode]').forEach((b)=>b.addEventListener('click',()=>{state.costMode=b.dataset.costMode;setActive('[data-cost-mode]','data-cost-mode',state.costMode);renderCosts();})); document.querySelectorAll('[data-scale-mode]').forEach((b)=>b.addEventListener('click',()=>{state.scaleMode=b.dataset.scaleMode;setActive('[data-scale-mode]','data-scale-mode',state.scaleMode);renderScale();}));
+    $('frontierDataset').addEventListener('change',(e)=>{state.frontierDataset=e.target.value;syncUrlState();renderDatasetStrip();renderFrontier();}); $('distortionDataset').addEventListener('change',(e)=>{state.distortionDataset=e.target.value;syncUrlState();renderDistortion();}); $('costDataset').addEventListener('change',(e)=>{state.costDataset=e.target.value;syncUrlState();renderCosts();}); $('costFilter').addEventListener('input',renderCosts);
+    document.querySelectorAll('[data-frontier-mode]').forEach((b)=>b.addEventListener('click',()=>{state.frontierMode=b.dataset.frontierMode;syncUrlState();setActive('[data-frontier-mode]','data-frontier-mode',state.frontierMode);renderFrontier();})); document.querySelectorAll('[data-frontier-view]').forEach((b)=>b.addEventListener('click',()=>{state.frontierView=b.dataset.frontierView;syncUrlState();setActive('[data-frontier-view]','data-frontier-view',state.frontierView);renderFrontier();})); document.querySelectorAll('[data-distortion-mode]').forEach((b)=>b.addEventListener('click',()=>{state.distortionMode=b.dataset.distortionMode;syncUrlState();setActive('[data-distortion-mode]','data-distortion-mode',state.distortionMode);renderDistortion();})); document.querySelectorAll('[data-cost-mode]').forEach((b)=>b.addEventListener('click',()=>{state.costMode=b.dataset.costMode;syncUrlState();setActive('[data-cost-mode]','data-cost-mode',state.costMode);renderCosts();})); document.querySelectorAll('[data-scale-mode]').forEach((b)=>b.addEventListener('click',()=>{state.scaleMode=b.dataset.scaleMode;syncUrlState();setActive('[data-scale-mode]','data-scale-mode',state.scaleMode);renderScale();}));
+    $('copyViewLink').addEventListener('click',()=>{copyText(syncUrlState()).then(()=>{ $('shareStatus').textContent='Link copied'; setTimeout(()=>{ $('shareStatus').textContent=''; },2200); }).catch(()=>{ $('shareStatus').textContent='Copy failed'; });}); $('downloadFrontier').addEventListener('click',()=>downloadSvg('frontierChart',`survey-benchmark-${state.frontierDataset}-${state.frontierMode}.svg`));
     $('themeToggle').addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('pqe-theme',document.body.classList.contains('dark')?'dark':'light');}); if(localStorage.getItem('pqe-theme')==='dark')document.body.classList.add('dark');
     const sections=[...document.querySelectorAll('.panel-section, #overview')], links=[...document.querySelectorAll('.nav-link')]; const observer=new IntersectionObserver((entries)=>entries.forEach((entry)=>{if(entry.isIntersecting){links.forEach((link)=>link.classList.toggle('active',link.getAttribute('href')===`#${entry.target.id}`));}}),{rootMargin:'-20% 0px -65% 0px'}); sections.forEach((section)=>observer.observe(section));
   }
-  renderKpis(); renderDatasetStrip(); renderFrontierLegend(); renderMethods(); wireControls(); renderFrontier(); renderDistortion(); renderCosts(); renderScale(); renderAblation(); renderOod();
+  restoreUrlState(); renderKpis(); renderProtocol(); renderDatasetStrip(); renderFrontierLegend(); renderMethods(); wireControls(); setActive('[data-frontier-mode]','data-frontier-mode',state.frontierMode); setActive('[data-frontier-view]','data-frontier-view',state.frontierView); setActive('[data-distortion-mode]','data-distortion-mode',state.distortionMode); setActive('[data-cost-mode]','data-cost-mode',state.costMode); setActive('[data-scale-mode]','data-scale-mode',state.scaleMode); renderFrontier(); renderDistortion(); renderCosts(); renderScale(); renderAblation(); renderOod();
 })();

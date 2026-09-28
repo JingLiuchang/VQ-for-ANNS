@@ -25,13 +25,14 @@
         <div class="side-kicker">EXPERIMENT MAP</div>
         <nav>
           <a class="nav-link active" href="#overview"><span>01</span>Overview</a>
-          <a class="nav-link" href="#frontier"><span>02</span>Search frontier</a>
-          <a class="nav-link" href="#distortion"><span>03</span>Quantization error</a>
-          <a class="nav-link" href="#costs"><span>04</span>Index & memory</a>
-          <a class="nav-link" href="#scale"><span>05</span>Scale to 100M</a>
-          <a class="nav-link" href="#ablation"><span>06</span>Component deltas</a>
-          <a class="nav-link" href="#ood"><span>07</span>OOD robustness</a>
-          <a class="nav-link" href="#methods"><span>08</span>Method directory</a>
+          <a class="nav-link" href="#protocol"><span>02</span>Protocol</a>
+          <a class="nav-link" href="#frontier"><span>03</span>Search frontier</a>
+          <a class="nav-link" href="#distortion"><span>04</span>Quantization error</a>
+          <a class="nav-link" href="#costs"><span>05</span>Index & memory</a>
+          <a class="nav-link" href="#scale"><span>06</span>Scale to 100M</a>
+          <a class="nav-link" href="#ablation"><span>07</span>Component deltas</a>
+          <a class="nav-link" href="#ood"><span>08</span>OOD robustness</a>
+          <a class="nav-link" href="#methods"><span>09</span>Method directory</a>
         </nav>
         <div class="side-footer">
           <div class="status-dot"></div>
@@ -58,47 +59,71 @@
           <div class="dataset-strip" id="datasetStrip"></div>
         </section>
 
+        <section id="protocol" class="panel-section protocol-section">
+          <div class="section-heading"><div><div class="section-index">02 / BENCHMARK CONTRACT</div><h2>Know what is being compared.</h2><p>Dataset metadata, metric direction, and evaluation rules stay next to the result plots.</p></div><div class="section-badge">reproducible contract</div></div>
+          <div class="protocol-grid">
+            <article class="protocol-card protocol-wide">
+              <div class="protocol-card-heading"><div><div class="protocol-kicker">DATASETS</div><h3>Six million-scale collections</h3></div><span class="protocol-tag">same schema as results</span></div>
+              <div class="data-table-wrap"><table class="protocol-table"><thead><tr><th>Dataset</th><th>Domain</th><th>Dim.</th><th>Base</th><th>Queries</th><th>LID</th></tr></thead><tbody id="datasetTableBody"></tbody></table></div>
+            </article>
+            <article class="protocol-card">
+              <div class="protocol-card-heading"><div><div class="protocol-kicker">METRICS</div><h3>Read the axes correctly</h3></div></div>
+              <div class="metric-list">
+                <div class="metric-row"><strong>Recall@10</strong><span>retrieval quality · higher ↑</span></div>
+                <div class="metric-row"><strong>QPS / nprobe</strong><span>throughput / routing budget</span></div>
+                <div class="metric-row"><strong>ARE / MRE</strong><span>reconstruction error · lower ↓</span></div>
+                <div class="metric-row"><strong>Index cost</strong><span>time, size, overhead · lower ↓</span></div>
+                <div class="metric-row"><strong>OOD recall</strong><span>text queries on image indexes</span></div>
+              </div>
+            </article>
+          </div>
+          <div class="protocol-note"><strong>Evaluation contract.</strong> Search curves report Recall@10 against QPS or nprobe; scaling fixes Recall@10 = 0.9; OOD panels use nprobe = 500; missing construction results indicate the 24-hour cutoff. The page is a static, manuscript-linked snapshot inspired by <a href="https://vq-bench.com/" target="_blank" rel="noreferrer">VQ-bench</a> and <a href="https://ann-benchmarks.com/index.html" target="_blank" rel="noreferrer">ANN-Benchmarks</a>.</div>
+        </section>
+
         <section id="frontier" class="panel-section">
-          <div class="section-heading"><div><div class="section-index">02 / END-TO-END</div><h2>Search frontier</h2><p>Choose a dataset and see the throughput–recall envelope without opening six separate figures.</p></div><div class="section-badge">higher is better <span>↗</span></div></div>
+          <div class="section-heading"><div><div class="section-index">03 / END-TO-END</div><h2>Search frontier</h2><p>Choose a dataset and see the throughput–recall envelope without opening six separate figures.</p></div><div class="section-badge">higher is better <span>↗</span></div></div>
           <div class="control-row">
             <label class="select-wrap">Dataset<select id="frontierDataset"></select></label>
             <div class="segmented" role="group" aria-label="Search metric"><button class="seg-button active" data-frontier-mode="qps" type="button">QPS · Recall@10</button><button class="seg-button" data-frontier-mode="nprobe" type="button">nprobe · Recall@10</button></div>
+            <div class="segmented" role="group" aria-label="Frontier view"><button class="seg-button active" data-frontier-view="explore" type="button">Explore</button><button class="seg-button" data-frontier-view="table" type="button">Table</button></div>
             <div class="legend-filter" id="frontierLegend"></div>
           </div>
-          <div class="chart-layout"><div class="chart-card"><div id="frontierChart" class="svg-chart" role="img" aria-label="Search frontier chart"></div><div class="chart-caption">Points are sampled from the generated P2 curves. Log scale is used for throughput and nprobe.</div></div><aside class="insight-card" id="frontierInsight"></aside></div>
+          <div class="chart-actions"><button id="copyViewLink" class="action-button" type="button">Copy view link</button><button id="downloadFrontier" class="action-button" type="button">Download SVG</button><span id="shareStatus" class="share-status" role="status" aria-live="polite"></span></div>
+          <div id="frontierExplore" class="chart-layout"><div class="chart-card"><div id="frontierChart" class="svg-chart" role="img" aria-label="Search frontier chart"></div><div class="chart-caption">Points are sampled from the generated P2 curves. Log scale is used for throughput and nprobe.</div></div><aside class="insight-card" id="frontierInsight"></aside></div>
+          <div id="frontierTable" class="table-card" hidden></div>
         </section>
 
         <section id="distortion" class="panel-section">
-          <div class="section-heading"><div><div class="section-index">03 / QUANTIZATION</div><h2>Distance error at a glance</h2><p>Zoom out from twelve overlaid lines and inspect the low-rate envelope first.</p></div><div class="section-badge">lower is better <span>↘</span></div></div>
+          <div class="section-heading"><div><div class="section-index">04 / QUANTIZATION</div><h2>Distance error at a glance</h2><p>Zoom out from twelve overlaid lines and inspect the low-rate envelope first.</p></div><div class="section-badge">lower is better <span>↘</span></div></div>
           <div class="control-row"><label class="select-wrap">Dataset<select id="distortionDataset"><option value="sift">SIFT</option><option value="deep">DEEP</option></select></label><div class="segmented" role="group" aria-label="Distance error metric"><button class="seg-button active" data-distortion-mode="ARE" type="button">ARE</button><button class="seg-button" data-distortion-mode="MRE" type="button">MRE</button></div><div class="chart-note">effective bits per dimension · log y</div></div>
           <div class="chart-layout"><div class="chart-card"><div id="distortionChart" class="svg-chart" role="img" aria-label="Quantization distortion chart"></div><div class="chart-caption">Representative curves are shown for PQ, OPQ, RQ, LSQ, RaBitQ, SAQ and TurboQ. Hover a point for the exact sampled value.</div></div><aside class="insight-card" id="distortionInsight"></aside></div>
         </section>
 
         <section id="costs" class="panel-section">
-          <div class="section-heading"><div><div class="section-index">04 / INDEXING</div><h2>Index, memory, and build cost</h2><p>Table view for the numbers that are hard to compare in a multi-panel figure.</p></div><div class="section-badge">lower is better <span>↘</span></div></div>
+          <div class="section-heading"><div><div class="section-index">05 / INDEXING</div><h2>Index, memory, and build cost</h2><p>Table view for the numbers that are hard to compare in a multi-panel figure.</p></div><div class="section-badge">lower is better <span>↘</span></div></div>
           <div class="control-row"><label class="select-wrap">Dataset<select id="costDataset"></select></label><div class="segmented" role="group" aria-label="Cost metric"><button class="seg-button active" data-cost-mode="it" type="button">Index time · s</button><button class="seg-button" data-cost-mode="is" type="button">Index size · MB</button><button class="seg-button" data-cost-mode="mo" type="button">Search overhead · MB</button></div><label class="search-wrap">Filter methods<input id="costFilter" type="search" placeholder="e.g. PQ, RaBitQ"></label></div>
           <div class="table-card"><div id="costTable" class="data-table-wrap"></div><div class="table-footnote">— means the construction exceeded the paper's 24-hour limit. Values are copied from <code>p2-cost-table-small.tex</code>.</div></div>
         </section>
 
         <section id="scale" class="panel-section">
-          <div class="section-heading"><div><div class="section-index">05 / SCALABILITY</div><h2>What happens at 100M?</h2><p>DEEP scaling study with QPS measured at Recall@10 = 0.9.</p></div><div class="section-badge">DEEP · 1M → 100M</div></div>
+          <div class="section-heading"><div><div class="section-index">06 / SCALABILITY</div><h2>What happens at 100M?</h2><p>DEEP scaling study with QPS measured at Recall@10 = 0.9.</p></div><div class="section-badge">DEEP · 1M → 100M</div></div>
           <div class="control-row"><div class="segmented" role="group" aria-label="Scalability metric"><button class="seg-button active" data-scale-mode="qps" type="button">Search QPS</button><button class="seg-button" data-scale-mode="index" type="button">Index time</button></div><div class="chart-note">log x · log y · shared IVF training included</div></div>
           <div class="chart-card"><div id="scaleChart" class="svg-chart" role="img" aria-label="Scalability chart"></div><div class="chart-caption">At 100M, IVF variants remain 3×+ faster to build than HNSW; the shared IVF training phase dominates construction time.</div></div>
         </section>
 
         <section id="ablation" class="panel-section">
-          <div class="section-heading"><div><div class="section-index">06 / COMPONENTS</div><h2>Component deltas</h2><p>Peak Recall@10 change over each family baseline, in percentage points.</p></div><div class="section-badge">positive = higher peak recall</div></div>
+          <div class="section-heading"><div><div class="section-index">07 / COMPONENTS</div><h2>Component deltas</h2><p>Peak Recall@10 change over each family baseline, in percentage points.</p></div><div class="section-badge">positive = higher peak recall</div></div>
           <div class="chart-layout"><div class="chart-card"><div id="ablationChart" class="svg-chart" role="img" aria-label="Ablation delta chart"></div><div class="chart-caption">The same component can help one dataset and hurt another. Hover cells to see signed deltas.</div></div><aside class="insight-card"><div class="insight-kicker">READ THIS FIRST</div><h3>Distance estimation is the sharpest lever.</h3><p>SDC costs 4.3–11.9 points of peak recall in the six-dataset sweep. Norm handling is usually positive, except on LAION.</p><div class="mini-stat"><span>Largest gain</span><strong>+8.0</strong><small>OPQ · GIST</small></div></aside></div>
         </section>
 
         <section id="ood" class="panel-section">
-          <div class="section-heading"><div><div class="section-index">07 / ROBUSTNESS</div><h2>Out-of-distribution recall</h2><p>At nprobe = 500, separate routing loss from quantized scan loss.</p></div><div class="section-badge">T2I + LAION</div></div>
+          <div class="section-heading"><div><div class="section-index">08 / ROBUSTNESS</div><h2>Out-of-distribution recall</h2><p>At nprobe = 500, separate routing loss from quantized scan loss.</p></div><div class="section-badge">T2I + LAION</div></div>
           <div class="ood-grid" id="oodGrid"></div>
           <div class="chart-caption ood-note">Exact-OOD is the routing ceiling: the same IVFFlat lists with exact distances and text queries. Differences of a few points on 100-query sets are indicative.</div>
         </section>
 
         <section id="methods" class="panel-section method-section">
-          <div class="section-heading"><div><div class="section-index">08 / REFERENCE</div><h2>Method directory</h2><p>A compact index of the families, error targets, code lengths, and quantization costs used in the survey.</p></div><div class="section-badge">12 representative methods</div></div>
+          <div class="section-heading"><div><div class="section-index">09 / REFERENCE</div><h2>Method directory</h2><p>A compact index of the families, error targets, code lengths, and quantization costs used in the survey.</p></div><div class="section-badge">12 representative methods</div></div>
           <div class="method-table-card"><table class="method-table"><thead><tr><th>Method</th><th>Family</th><th>Error</th><th>Code length</th><th>Quantization cost</th></tr></thead><tbody id="methodTableBody"></tbody></table></div>
         </section>
 
